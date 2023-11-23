@@ -9,6 +9,8 @@ namespace OpenPsa\Ranger;
 
 use IntlDateFormatter;
 use DateTime;
+use DateTimeImmutable;
+use DateTimeInterface;
 use RuntimeException;
 use InvalidArgumentException;
 use OpenPsa\Ranger\Provider\DefaultProvider;
@@ -226,23 +228,25 @@ class Ranger
     /**
      * @param mixed $input
      * @throws InvalidArgumentException
-     * @return DateTime
+     * @return DateTimeImmutable
      */
-    private function prepare_date($input) : DateTime
+    private function prepare_date($input) : DateTimeImmutable
     {
         if ($input instanceof DateTime) {
+            return DateTimeImmutable::createFromMutable($input);
+        }
+        if ($input instanceof DateTimeImmutable) {
             return $input;
         }
         if (is_numeric($input)) {
-            $date = new Datetime;
-            $date->setTimestamp(intval($input));
-            return $date;
+            $date = new DatetimeImmutable;
+            return $date->setTimestamp(intval($input));
         }
         if (is_string($input)) {
-            return new Datetime($input);
+            return new DatetimeImmutable($input);
         }
         if ($input === null) {
-            return new Datetime;
+            return new DatetimeImmutable;
         }
         throw new InvalidArgumentException("Don't know how to handle " . gettype($input));
     }
@@ -266,10 +270,10 @@ class Ranger
     }
 
     /**
-     * @param DateTime $date
+     * @param DateTimeInterface $date
      * @return array
      */
-    private function tokenize(DateTime $date) : array
+    private function tokenize(DateTimeInterface $date) : array
     {
         $tokens = [];
 
@@ -313,18 +317,18 @@ class Ranger
     }
 
     /**
-     * @param DateTime $start
-     * @param DateTime $end
+     * @param DateTimeImmutable $start
+     * @param DateTimeImmutable $end
      * @return int
      */
-    private function find_best_match(DateTime $start, DateTime $end) : int
+    private function find_best_match(DateTimeImmutable $start, DateTimeImmutable $end) : int
     {
         // make a copy of end because we might change pieces of it
         $end_copy = clone $end;
 
         // ignore the date if it's not output
         if ($this->date_type === IntlDateFormatter::NONE) {
-            $end_copy->setDate($start->format('Y'), $start->format('m'), $start->format('d'));
+            $end_copy = $end_copy->setDate($start->format('Y'), $start->format('m'), $start->format('d'));
         }
 
         $map = [
@@ -346,7 +350,7 @@ class Ranger
         }
 
         //set to same time to avoid DST problems
-        $end_copy->setTimestamp((int) $start->format('U'));
+        $end_copy = $end_copy->setTimestamp((int) $start->format('U'));
         if (   $start->format('T') !== $end_copy->format('T')
             || (   $this->time_type !== IntlDateFormatter::NONE
                 && $best_match < self::DAY)) {
